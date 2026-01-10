@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package common;
+
+message Trade {
+  string symbol = 1; // "BTCUSDT"
+  double price = 2; // 45000.50
+  double quantity = 3; // 0.05;
+  uint64 timestamp = 4; // ms timestamp
+}
