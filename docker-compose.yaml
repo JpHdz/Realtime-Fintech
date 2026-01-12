@@ -45,6 +45,17 @@ services:
     volumes:
       - redis_data:/data
 
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    ports:
+      - "5444:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=crypto_db
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     ports:
@@ -60,3 +71,4 @@ services:
 volumes:
   redis_data:
   kafka_data:
+  timescale_data:

@@ -12,6 +12,17 @@ common = { path = "../common" }
 tokio = {version = "1", features = ["full"]}
 futures = "0.3"
 
+# Redis 
+redis = { version = "0.24", features = ["tokio-comp"] }
+
+# Sqlx
+sqlx = { version = "0.7", features = ["runtime-tokio", "tls-native-tls", "postgres", "chrono"] }
+
+# Features for timescaledb storage
+chrono = "0.4"
+dotenvy="0.15"
+
+
 # Kafka client
 rdkafka = { version="0.36", features = ["cmake-build"]}
 
