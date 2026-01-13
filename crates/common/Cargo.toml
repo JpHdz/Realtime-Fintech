@@ -6,5 +6,14 @@ edition = "2024"
 [dependencies]
 prost = "0.12"
 
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+opentelemetry = "0.21"
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry-otlp = "0.14" # Send data to jaeger
+tracing-opentelemetry = "0.22"
+
 [build-dependencies]
 prost-build = "0.12"
+

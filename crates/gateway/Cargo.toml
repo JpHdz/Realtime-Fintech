@@ -6,8 +6,9 @@ edition = "2024"
 [dependencies]
 
 # Async and Web framework
-axum = "0.7"
+axum = {version = "0.7", features = ["ws"]}
 tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
 
 # Read Data
 redis = { version = "0.24", features = ["tokio-comp","connection-manager"] }
@@ -18,3 +19,10 @@ serde_json = "1"
 
 # Cors
 tower-http = { version = "0.5", features = ["cors"] }
+
+# Sqlx
+sqlx = { version = "0.7", features = ["runtime-tokio", "tls-native-tls", "postgres", "chrono"] }
+
+# Features for timescaledb storage
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy="0.15"
