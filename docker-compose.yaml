@@ -25,6 +25,12 @@ services:
 
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
 
+    healthcheck:
+      test: nc -z localhost 9092 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
     # Necessary to start out cluster with KRaft
     command: >
       bash -c "
@@ -37,6 +43,25 @@ services:
 
     volumes:
       - kafka_data:/var/lib/kafka/data
+
+  init-kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on:
+      kafka:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      # Bloquea hasta que Kafka sea accesible
+      echo -e 'Waiting for Kafka to be ready...'
+      kafka-topics --bootstrap-server kafka:9092 --list
+
+      echo -e 'Creating kafka topics...'
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic trades --replication-factor 1 --partitions 1
+
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka:9092 --list
+      "
 
   redis:
     image: redis:7-alpine
@@ -55,6 +80,11 @@ services:
       - POSTGRES_DB=crypto_db
     volumes:
       - timescale_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -76,6 +106,53 @@ services:
       - "16686:16686"
       - "4317:4317"
       - "4318:4318"
+
+  ingestor:
+    build: .
+    image: crypto-engine:latest
+    command: ./ingestor
+    depends_on:
+      - kafka
+    env_file: .env
+    environment:
+      - KAFKA_BROKER=kafka:9092
+
+  processor:
+    image: crypto-engine:latest
+    command: ./processor
+    restart: on-failure
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      redis:
+        condition: service_started
+      init-kafka:
+        condition: service_completed_successfully
+    environment:
+      - DATABASE_URL=postgres://postgres:password@timescaledb:5432/crypto_db
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BROKER=kafka:9092
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    env_file: .env
+
+  gateway:
+    image: crypto-engine:latest
+    command: ./gateway
+    restart: on-failure
+    ports:
+      - "3000:3000"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgres://postgres:password@timescaledb:5432/crypto_db
+      - REDIS_URL=redis://redis:6379
+    env_file: .env
+
 volumes:
   redis_data:
   kafka_data:

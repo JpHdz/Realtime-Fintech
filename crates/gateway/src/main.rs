@@ -3,7 +3,7 @@ use dotenvy::dotenv;
 use redis::{AsyncCommands, aio::ConnectionManager};
 use serde::Serialize;
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
-use tokio::sync::broadcast;
+use tokio::{sync::broadcast, time::{sleep,Duration}};
 use tokio_stream::StreamExt;
 use std::{env, sync::Arc};
 use tower_http::cors::CorsLayer;
@@ -37,18 +37,46 @@ async fn main() {
 
     let timescaledb_url = env::var("DATABASE_URL").expect("DATABASE URL not found");
 
-    let db_pool = PgPoolOptions::new().max_connections(5).connect(&timescaledb_url).await.unwrap();
+    println!("Connecting to timescaledb: {}", timescaledb_url);
 
-    println!("Connecting to timescaledb");
+    let db_pool = PgPoolOptions::new().max_connections(5).connect(&timescaledb_url).await.expect("Failed to connect to TimescaleDB");
 
-    let client = redis::Client::open("redis://127.0.0.1:6379").expect("Invalid redis client");
+
+    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
+
+    let client = redis::Client::open(redis_url).expect("Invalid redis client");
+
+
+    let connection_manager = loop {
+        match client.get_connection_manager().await {
+            Ok(conn) => {
+                println!("Connected to Redis Manager!");
+                break conn;
+            }
+            Err(e) => {
+                eprintln!("Redis not ready yet: {}. Retrying in 2s...", e);
+                sleep(Duration::from_secs(2)).await;
+            }
+        }
+    };
 
     let (tx,_rx) = broadcast::channel(100);
 
-    let state = Arc::new(AppState {redis_client: client.get_connection_manager().await.unwrap(), tx:tx.clone(), db_pool});
+    let state = Arc::new(AppState {redis_client: connection_manager, tx:tx.clone(), db_pool});
    
+   let mut pubsub_conn = loop {
+        match client.get_async_connection().await {
+            Ok(conn) => {
+                println!("Connected to Redis PubSub!");
+                break conn.into_pubsub();
+            }
+            Err(e) => {
+                eprintln!("Redis PubSub not ready: {}. Retrying in 2s...", e);
+                sleep(Duration::from_secs(2)).await;
+            }
+        }
+    };
 
-    let mut pubsub_conn = client.get_async_connection().await.unwrap().into_pubsub();
     pubsub_conn.subscribe("updates").await.unwrap();
 
     tokio::spawn(async move {

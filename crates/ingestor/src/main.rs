@@ -1,3 +1,4 @@
+use std::env;
 use std::io::Write;
 
 use common::Trade;
@@ -23,7 +24,9 @@ struct BinanceTrade {
 
 
 fn create_producer() -> FutureProducer {
-    ClientConfig::new().set("bootstrap.servers", "localhost:9094").set("message.timeout.ms", "5000").create().expect("Failtd to initialize kafka producer")
+    let kafka_broker = env::var("KAFKA_BROKER").unwrap_or_else(|_| "localhost:9094".to_string());
+    println!("Connecting to Kafka at: {}", kafka_broker);
+    ClientConfig::new().set("bootstrap.servers", &kafka_broker).set("message.timeout.ms", "5000").create().expect("Failtd to initialize kafka producer")
 }
 
 #[tokio::main]

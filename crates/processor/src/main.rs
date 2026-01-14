@@ -31,7 +31,8 @@ const WINDOW_SIZE: usize = 10;
 
 
 fn create_consumer() -> StreamConsumer {
-    ClientConfig::new().set("group.id", "crypto-proccesor-group").set("bootstrap.servers", "localhost:9094").set("enable.auto.commit", "true").set("auto.offset.reset", "earliest").create().expect("Fail creating consumer")
+    let kafka_broker = env::var("KAFKA_BROKER").unwrap_or_else(|_| "localhost:9094".to_string());
+    ClientConfig::new().set("group.id", "crypto-proccesor-group").set("bootstrap.servers", &kafka_broker).set("enable.auto.commit", "true").set("auto.offset.reset", "earliest").create().expect("Fail creating consumer")
 }
 
 
@@ -41,7 +42,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
     let timescaledb_url = env::var("DATABASE_URL").expect("DATABASE URL not found");
-    let redis_client = redis::Client::open("redis://127.0.0.1:6379")?;
+    
+    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
+    let redis_client = redis::Client::open(redis_url).expect("Invalid redis client");
 
     let db_pool  = PgPoolOptions::new().max_connections(5).connect(&timescaledb_url).await?;
     info!("Connecting to timescaledb");
@@ -50,7 +53,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Connecting to redis");    
 
     let consumer = create_consumer();
-    consumer.subscribe(&["trades"]).expect("Failed subscribing to topic");
+    loop {
+    match consumer.subscribe(&["trades"]) {
+            Ok(_) => {
+                info!("Subscribed to trades topic");
+                break;
+            },
+            Err(e) => {
+                error!("Failed to subscribe to 'trades': {}. Retrying in 5 seconds...", e);
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+        }
+    }   
     info!("Started processing data...");
     
     let mut price_window: VecDeque<f64> = VecDeque::with_capacity(WINDOW_SIZE);
