@@ -120,3 +120,23 @@ The entire stack is containerized. You can spin up the environment with a single
 | Endpoint | Protocol | Description                                                         |
 | :------- | :------- | :------------------------------------------------------------------ |
 | `/ws`    | `ws://`  | Stream real-time JSON updates including Price, SMA-20, and Signals. |
+
+## ⚠️ Disclaimer & Performance Warning
+
+**Please Read Before Running:**
+
+This project is a **portafolio project** designed to demonstrate microservices architecture and Rust capabilities. It is **not** a production-ready trading system and lacks features such as:
+
+- Data retention policies (old data is not automatically deleted).
+- Docker resource limits (CPU/RAM quotas).
+- Comprehensive security hardening.
+
+**Performance Notice:**
+The Ingestor service simulates high-frequency market data. Running the stack for extended periods (30+ minutes) on a personal machine may result in **high Disk I/O and RAM usage**, potentially slowing down your system as TimescaleDB grows indefinitely.
+
+**Recommendation:**
+Stop the containers when you are done exploring to free up resources:
+
+```bash
+docker compose down -v
+```
