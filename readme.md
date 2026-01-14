@@ -82,17 +82,26 @@ The entire stack is containerized. You can spin up the environment with a single
     cd realtime-fintech-engine
     ```
 
-2.  **Start the services:**
+2.  **Initialize Database:**
+    First, start the database container to apply schemas.
 
     ```bash
-    # This will compile the Rust binaries and start infrastructure services
-    docker compose up -d --build
+    docker compose up -d timescaledb
     ```
 
-3.  **Verify Status:**
-    Ensure all containers are healthy (Gateway, Processor, Ingestor, Kafka, Redis, DB).
+3.  **Apply Migrations:**
+    Ensure the database schema is created before starting the application logic.
+
     ```bash
-    docker ps
+    # Migrate Db
+    sqlx migrate run
+    ```
+
+4.  **Start the full stack:**
+    Once the database is ready, spin up the rest of the services.
+
+    ```bash
+    docker compose up -d --build
     ```
 
 ---
